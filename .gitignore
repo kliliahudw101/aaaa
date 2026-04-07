@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+reports/scan_*
+reports/report_*
+scan.log
+consolidated_all_results.txt
+ai_full_explanation.txt
