@@ -1,17 +1,16 @@
 import requests
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
 from colorama import Fore, Style
 from core.config import G, t, safe_print
 
 class AIManager:
-    """Manager for OpenRouter and AI routing."""
+    """Manager for OpenRouter and Collaborative AI routing."""
 
     MODELS = {
-        "primary": "stepfun/step-3.5-flash:free",
-        "exploit": "nvidia/nemotron-3-super-120b-a12b:free",
-        "analysis": "z-ai/glm-4.5-air:free"
+        "primary": "stepfun/step-3.5-flash:free",      # Identification & Strategy
+        "auditor": "z-ai/glm-4.5-air:free",           # Validation & False Positive reduction
+        "exploit": "nvidia/nemotron-3-super-120b-a12b:free" # PoC & Exploit development
     }
 
     def __init__(self, api_key):
@@ -23,23 +22,16 @@ class AIManager:
             "X-Title": "Deep Recon Scanner v5.0",
         }
 
-    def call_model(self, model, prompt, timeout=60, temperature=0.3):
+    def call_model(self, model, prompt, system_prompt="You are a senior cybersecurity expert.", timeout=60, temperature=0.3):
         """Generic OpenRouter call."""
         try:
-            # Fixed insecure API call (removed verify=False for OpenRouter)
             response = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers=self.headers,
                 json={
                     "model": model,
                     "messages": [
-                        {
-                            "role": "system",
-                            "content": "You are a senior cybersecurity penetration testing expert. "
-                                      "Provide detailed, actionable security analysis. "
-                                      "Always include specific CVE numbers when applicable. "
-                                      "Structure your response with clear headings and bullet points."
-                        },
+                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt}
                     ],
                     "max_tokens": 4096,
@@ -59,23 +51,44 @@ class AIManager:
                 G.logger.error(f"AI call error: {e}")
             return f"ERROR: {str(e)}"
 
-    def strategic_analysis(self, scan_results):
-        prompt = f"Perform a comprehensive strategic analysis for the target based on these results:\n\n{scan_results}"
-        return self.call_model(self.MODELS["primary"], prompt)
+    def collaborative_scan_analysis(self, raw_data):
+        """
+        Phase 1: Identification (Stepfun)
+        Phase 2: Audit & Validation (GLM)
+        Phase 3: Final Consolidation (Stepfun)
+        """
+        lang_instr = "Respond in Arabic." if G.lang == "ar" else "Respond in English."
 
-    def generate_poc(self, finding_details):
-        prompt = f"As an exploit developer, provide a detailed PoC script (Python/Curl) and exploitation guide for this finding:\n\n{finding_details}"
-        return self.call_model(self.MODELS["exploit"], prompt)
+        # 1. Identification
+        safe_print(f"  {Fore.CYAN}[*] AI: Identifying vulnerabilities (Stepfun)...{Style.RESET_ALL}")
+        id_prompt = f"Analyze the following security scan data and identify potential vulnerabilities and entry points:\n\n{raw_data}\n\n{lang_instr}"
+        id_report = self.call_model(self.MODELS["primary"], id_prompt, "You are a specialized security identification expert.")
 
-    def technical_summary(self, scan_results):
-        prompt = f"Summarize these scan findings with a focus on risk and remediation:\n\n{scan_results}"
-        return self.call_model(self.MODELS["analysis"], prompt)
+        # 2. Audit
+        safe_print(f"  {Fore.CYAN}[*] AI: Auditing findings for accuracy (GLM)...{Style.RESET_ALL}")
+        audit_prompt = f"Review the following security findings. Validate if they are likely correct or potential false positives. Point out any missed details:\n\n{id_report}\n\nOriginal Data for context:\n{raw_data[:5000]}\n\n{lang_instr}"
+        audit_report = self.call_model(self.MODELS["auditor"], audit_prompt, "You are a rigorous security auditor. Your goal is to reduce false positives.")
 
-    def route_task(self, task_type, content):
-        """Route task to the most suitable model."""
-        if task_type == "exploit":
-            return self.generate_poc(content)
-        elif task_type == "analysis":
-            return self.technical_summary(content)
-        else:
-            return self.strategic_analysis(content)
+        # 3. Final Consolidation
+        safe_print(f"  {Fore.CYAN}[*] AI: Finalizing strategic report...{Style.RESET_ALL}")
+        final_prompt = f"Based on the initial findings and the audit review, produce the final consolidated security assessment. Resolve any conflicts between the initial report and the audit:\n\nInitial findings: {id_report}\n\nAudit review: {audit_report}\n\n{lang_instr}"
+        final_report = self.call_model(self.MODELS["primary"], final_prompt)
+
+        return final_report
+
+    def collaborative_exploit_gen(self, vulnerabilities):
+        """
+        Phase 1: Exploit Strategy (Nvidia)
+        Phase 2: Safety & Accuracy Check (GLM)
+        """
+        lang_instr = "Respond in Arabic." if G.lang == "ar" else "Respond in English."
+
+        safe_print(f"  {Fore.CYAN}[*] AI: Developing exploit PoCs (Nvidia)...{Style.RESET_ALL}")
+        strat_prompt = f"For the following confirmed vulnerabilities, provide detailed PoC scripts (Python/Curl) and exploitation steps:\n\n{vulnerabilities}\n\n{lang_instr}"
+        strat_out = self.call_model(self.MODELS["exploit"], strat_prompt, "You are an expert exploit developer.")
+
+        safe_print(f"  {Fore.CYAN}[*] AI: Reviewing exploit code for accuracy (GLM)...{Style.RESET_ALL}")
+        review_prompt = f"Review the following exploit PoCs and instructions. Ensure they are technically accurate and match the vulnerabilities described. Provide improvements if needed:\n\n{strat_out}\n\n{lang_instr}"
+        final_exploits = self.call_model(self.MODELS["auditor"], review_prompt, "You are a senior security researcher reviewing exploit code.")
+
+        return final_exploits

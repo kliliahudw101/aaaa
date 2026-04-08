@@ -15,6 +15,8 @@ from colorama import init, Fore, Back, Style
 
 init(autoreset=True)
 
+API_KEY_FILE = ".api_key"
+
 class GlobalState:
     """Thread-safe global state for the scanner."""
     def __init__(self):
@@ -53,11 +55,9 @@ G = GlobalState()
 STRINGS = {
     "en": {
         "banner": "{cyan}Deep Recon Framework v5.0 (Modular Edition){reset}",
-        # ... Add other strings as needed
     },
     "ar": {
         "banner": "{cyan}فريمورك الفحص العميق v5.0 (النسخة المعيارية){reset}",
-        # ... Add other strings as needed
     }
 }
 
@@ -85,3 +85,24 @@ def setup_logging(output_dir):
     logger.addHandler(fh)
     G.logger = logger
     return logger
+
+def save_api_key(api_key):
+    """Save the OpenRouter API key to a hidden file."""
+    try:
+        with open(API_KEY_FILE, "w", encoding="utf-8") as f:
+            f.write(api_key.strip())
+        return True
+    except Exception as e:
+        if G.logger:
+            G.logger.error(f"Failed to save API key: {e}")
+        return False
+
+def load_api_key():
+    """Load the OpenRouter API key from the hidden file."""
+    if os.path.exists(API_KEY_FILE):
+        try:
+            with open(API_KEY_FILE, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception:
+            return None
+    return None
