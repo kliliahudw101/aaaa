@@ -1,0 +1,20 @@
+openrouter:
+  api_key: sk-or-v1-fake-key-for-testing-only-12345
+  base_url: https://openrouter.ai/api/v1
+  models:
+    analysis: nvidia/nemotron-3-super-120b-a12b:free
+    synthesis: z-ai/glm-4.5-air:free
+    triage: stepfun/step-3.5-flash:free
+scan:
+  rate_limit: 0.1
+  threads: 20
+  timeout: 15
+  user_agent: ZenithRecon/1.0 (Professional Security Reconnaissance)
+tools:
+  base_dir: tools
+  takeover:
+    path: tools/takeover
+    repo: https://github.com/edoardottt/takeover.git
+  xsstrike:
+    path: tools/XSStrike
+    repo: https://github.com/s0md3v/XSStrike.git

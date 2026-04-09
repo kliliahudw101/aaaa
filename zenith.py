@@ -2,13 +2,14 @@ import sys
 import os
 import argparse
 import json
+import urllib3
 from datetime import datetime
 from rich.panel import Panel
 from rich.text import Text
 from rich.prompt import Prompt, Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
-import urllib3
 
+# Zenith Imports
 from core.logger import setup_logger, get_logger, console, success, info, warning, error, ai_msg
 from core.config import ConfigManager
 from core.state_manager import StateManager
@@ -53,8 +54,10 @@ class ZenithApp:
         self.args = get_args()
         self.config = ConfigManager()
 
+        # Priority: CLI Arg > Config File > Interactive Prompt
         api_key = self.args.api_key or self.config.get("openrouter.api_key")
-        if not api_key:
+
+        if not api_key or api_key.strip() == "":
             print_banner()
             api_key = Prompt.ask("[bold magenta]Enter OpenRouter API Key[/bold magenta]", password=True)
             self.config.set("openrouter.api_key", api_key)
@@ -101,14 +104,13 @@ class ZenithApp:
             )
             # 1 = Yes, 2 = No
             if choice == "1":
-                # VERY IMPORTANT: Safety list check
+                # Safety check
                 safety_blacklist = ["rm -rf /", "mkfs", "> /dev/sda", ":(){ :|:& };:"]
                 if any(bad in cmd for bad in safety_blacklist):
                     error(f"Command BLOCKED for safety reasons: {cmd}")
                     continue
 
                 info(f"Executing: {cmd}")
-                # Execute in shell for piping support etc, but with CAUTION
                 os.system(cmd)
             else:
                 info("Skipping command.")
@@ -169,22 +171,27 @@ class ZenithApp:
             else:
                 progress.update(task3, completed=100, description="[yellow]Vuln Skipped (Completed).")
 
-        # Phase 4: AI Collaboration & Human-in-the-loop
+        # Phase 4: AI Collaboration
         info("Synthesizing all data for AI collaboration...")
-        all_results = json.dumps(self.state.state["results"], indent=2)
-        strategy = self.ai.collaborate(self.host, all_results)
+        try:
+            results_data = self.state.state["results"]
+            all_results_json = json.dumps(results_data, indent=2)
+            strategy = self.ai.collaborate(self.host, all_results_json)
 
-        if strategy:
-            console.print(Panel(strategy, title="[bold magenta]AI Collaborative Strategy[/bold magenta]", border_style="magenta"))
-            self.state.update_result("ai_strategy", strategy)
-
-            # Interactive Loop
-            self.run_human_in_loop(strategy)
+            if strategy:
+                console.print(Panel(strategy, title="[bold magenta]AI Collaborative Strategy[/bold magenta]", border_style="magenta"))
+                self.state.update_result("ai_strategy", strategy)
+                self.run_human_in_loop(strategy)
+        except Exception as ai_err:
+            error(f"AI Collaboration failed: {ai_err}")
 
         # Export final data
-        self.exporter.to_json(self.state.state["results"])
-        if "vuln" in self.state.state["results"]:
-            self.exporter.to_csv(self.state.state["results"]["vuln"])
+        try:
+            self.exporter.to_json(self.state.state["results"])
+            if "vuln" in self.state.state["results"]:
+                self.exporter.to_csv(self.state.state["results"]["vuln"])
+        except Exception as exp_err:
+            error(f"Export failed: {exp_err}")
 
         success(f"Full ZenithRecon scan for {self.host} completed.")
         info(f"Reports saved in: {self.output_dir}")
@@ -194,9 +201,7 @@ if __name__ == "__main__":
         app = ZenithApp()
         app.run()
     except KeyboardInterrupt:
-        warning("Scan interrupted by user.")
+        warning("\nScan interrupted by user.")
         sys.exit(0)
     except Exception as e:
         error(f"An unexpected error occurred: {e}")
-        # import traceback
-        # traceback.print_exc()
