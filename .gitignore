@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+reports/
+tools/XSStrike/
+tools/takeover/
+config/settings.yaml

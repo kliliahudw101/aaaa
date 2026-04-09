@@ -1,0 +1,36 @@
+triage: |
+  You are a senior cybersecurity expert performing a triage on reconnaissance data.
+  Analyze the following raw results for {target} and identify key points of interest,
+  vulnerabilities, or interesting patterns:
+
+  RESULTS:
+  {data}
+
+analysis: |
+  You are a deep security analyst. Based on the following triage report for {target},
+  perform a deep security analysis. Suggest potential exploit paths, specific
+  vulnerabilities to investigate, and detailed manual tests:
+
+  TRIAGE REPORT:
+  {data}
+
+synthesis: |
+  You are a master security strategist. Review the following triage and analysis
+  reports for {target}. Synthesize a final executive strategy.
+  Include:
+  1. Executive Summary
+  2. Attack Surface Overview
+  3. Ranked Vulnerabilities
+  4. Strategic Recommendations
+  5. Specific commands for other tools to run next.
+
+  REPORTS:
+  {data}
+
+command_extraction: |
+  From the following security strategy, extract a list of specific terminal commands
+  that a user should run. Return ONLY a JSON list of strings.
+  Example: ["nmap -sV target.com", "xsstrike -u target.com"]
+
+  STRATEGY:
+  {data}
