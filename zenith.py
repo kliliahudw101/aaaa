@@ -1,11 +1,13 @@
 import sys
 import os
 import argparse
+import json
 from datetime import datetime
 from rich.panel import Panel
 from rich.text import Text
 from rich.prompt import Prompt, Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+import urllib3
 
 from core.logger import setup_logger, get_logger, console, success, info, warning, error, ai_msg
 from core.config import ConfigManager
@@ -34,6 +36,7 @@ BANNER = """
 
 def print_banner():
     console.print(Panel(Text.from_markup(BANNER), border_style="cyan"))
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def get_args():
     parser = argparse.ArgumentParser(description="ZenithRecon - Advanced Reconnaissance Tool")
@@ -49,8 +52,15 @@ class ZenithApp:
     def __init__(self):
         self.args = get_args()
         self.config = ConfigManager()
-        if self.args.api_key:
-            self.config.set("openrouter.api_key", self.args.api_key)
+
+        api_key = self.args.api_key or self.config.get("openrouter.api_key")
+        if not api_key:
+            print_banner()
+            api_key = Prompt.ask("[bold magenta]Enter OpenRouter API Key[/bold magenta]", password=True)
+            self.config.set("openrouter.api_key", api_key)
+        else:
+            self.config.set("openrouter.api_key", api_key)
+
         if self.args.threads:
             self.config.set("scan.threads", self.args.threads)
         if self.args.timeout:
